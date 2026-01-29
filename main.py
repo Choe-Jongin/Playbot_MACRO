@@ -1,3 +1,4 @@
+import os
 import pyautogui
 import time
 import re
@@ -9,7 +10,7 @@ import random
 import pyperclip
 
 #목표레벨
-TARGET_LEVEL = 19
+TARGET_LEVEL = 20
 
 ##########################
 # 좌표 어긋나면 난리 나요!! #
@@ -40,6 +41,7 @@ def enhance_once():
     pyautogui.press('enter')
     time.sleep(0.05)
     pyautogui.press('enter')
+    time.sleep(0.05)
 
 # 대화 영역 캡쳐 
 def capture_roi():
@@ -76,19 +78,21 @@ def copy_roi_text():
 
     # ROI 드래그 선택
     pyautogui.moveTo(CHATBOX_X1, CHATBOX_Y1)
-    time.sleep(0.1)
+    time.sleep(0.02)
     pyautogui.dragTo(
         CHATBOX_X2, CHATBOX_Y2,
         duration=0.2,
         button='left'
     )
-    time.sleep(0.1)
+    time.sleep(0.02)
 
     # 복사
     pyautogui.hotkey('ctrl', 'c')
 
     # 클립보드 반영 대기
     time.sleep(0.05)
+
+    pyautogui.click(CHATBOX_X1, CHATBOX_Y1)
 
     text = pyperclip.paste()
     key = '@사용자 〖'
@@ -182,7 +186,8 @@ def main_loop():
         with lock:
             if not running:
                 break
-        print("========================================================================")
+        print("=============================================================")
+        print(f"< lv{prev_level} → lv{prev_level + 1} 강화 시도 >")
 
         enhance_once()                              # 강화 시도
         baseline = capture_roi()                    # 대화 영역 캡쳐
@@ -193,13 +198,13 @@ def main_loop():
             continue
 
         # 결과 출력 대기 (랜덤)
-        time.sleep(random.uniform(0.1, 0.22))
+        time.sleep(random.uniform(0.03, 0.05))
 
         with lock:
             if not running:
                 break
 
-        text = copy_roi_text()
+        text = copy_roi_text()                      # 결과 문자 인식
         result_dict = parse_enhance_result(text, prev_level)
 
         result = result_dict['result'] 
@@ -209,23 +214,19 @@ def main_loop():
 
         update_stats(result, level, prev_level, use_gold)
         
-        print("+------------------------------------------------------------------+")
-        print(f"| 결과 | {result}")
+        print("+-------------------------------------------------------------+")
+        print(f"| 결과 : {result}")
         print(f"| 현재 강화 단계 : +{level}")
         print(f"| 사용 골드 : {use_gold}")
         print(f"| 남은 골드 : {gold}")
-        print("+------------------------------------------------------------------+")
+        print("+-------------------------------------------------------------+")
 
         print("\n[ 통계 ]")
+        print("레벨    성공   유지   파괴   미상   사용골드")
         for lv in sorted(stats.keys()):
             s = stats[lv]
             print(
-                f"lv{lv:<2} : "
-                f"성공 {s['SUCCESS']:<4}  "
-                f"유지 {s['KEEP']:<4}  "
-                f"파괴 {s['DESTROY']:<4}  "
-                f"미상 {s['UNKNOWN']:<1}  "
-                f"사용골드 {s['TOTAL_GOLD']}G"
+                f"lv{lv:<2} {s['SUCCESS']:6} {s['KEEP']:6} {s['DESTROY']:6} {s['UNKNOWN']:6}    {s['TOTAL_GOLD']:>8}"
             )
 
         if level >= TARGET_LEVEL:
@@ -235,7 +236,7 @@ def main_loop():
             break
         
         prev_level = level
-        time.sleep(random.uniform(0.66, 1.25))
+        time.sleep(random.uniform(0.02, 0.05))
 
 # 단축키
 def start():
@@ -244,6 +245,7 @@ def start():
         if running:
             return
         running = True
+    print("\n▶ 강화 시작")
     threading.Thread(target=main_loop, daemon=True).start()
 
 def stop():
@@ -252,12 +254,16 @@ def stop():
         running = False
     print("\n⛔ 수동 중지")
 
-
+def close():
+    print("\n프로그램 종료")
+    os._exit(0)
+    
 ###############################################################################    
 #entry point
 
 keyboard.add_hotkey('F8', start)
 keyboard.add_hotkey('F9', stop)
+keyboard.add_hotkey('F10', close)
 
 result_dict = parse_enhance_result(copy_roi_text(), 0)
 if result_dict['result'] == "UNKNOWN":
@@ -267,7 +273,7 @@ print("-------------------------------------------------------")
 print(f"현재 강화 단계 : +{result_dict['level']}")
 print(f"남은 골드 : {result_dict['gold']}")
 print("✅ 준비 완료")
-print("▶ F8 시작 / ⛔ F9 중지")
+print("▶ F8 시작 / ⛔ F9 중지 / 종료 F10")
 print("-------------------------------------------------------")
 
 keyboard.wait()
